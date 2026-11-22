@@ -2,11 +2,9 @@ name: Build two offline AIs (Android APK)
 on:
   push:
     branches: [build/duo-offline-android]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   android:
     runs-on: ubuntu-24.04
@@ -83,3 +81,18 @@ jobs:
           path: out/*
           if-no-files-found: error
           retention-days: 30
+      - name: Publish direct-download beta APK
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="duo-v0.1.0-beta"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" out/Dva-II-offline-v0.1.0-arm64.apk out/SHA256SUMS out/SIGNATURE.txt --clobber
+          else
+            gh release create "$tag" out/Dva-II-offline-v0.1.0-arm64.apk out/SHA256SUMS out/SIGNATURE.txt \
+              --target "$GITHUB_SHA" --title "Два ИИ — Android 0.1.0 beta" \
+              --notes "Тестовый офлайн-клиент с импортом GGUF, чатом, распознаванием фото при поддержке модели, локальным голосом после установки голосовых моделей. Требуется проверка на телефоне. Подпись экспериментальная, не production." \
+              --prerelease
+          fi
