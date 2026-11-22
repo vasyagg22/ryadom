@@ -192,6 +192,22 @@ replace(path,
         }
         keyExtractor={item => item.type}""")
 
+
+# Russian UI on a fresh install; existing preferences still override the default.
+replace("src/store/UIStore.ts",
+    "_language: AvailableLanguage = 'en';",
+    "_language: AvailableLanguage = 'ru';")
+# Local import: never copy an arbitrary file into the GGUF runtime by mistake.
+replace("src/screens/ModelsScreen/ModelsScreen.tsx",
+    """          const pickedName = file.name || file.uri.split('/').pop();
+          let fileName""",
+    """          const pickedName = file.name || file.uri.split('/').pop();
+          if (!pickedName?.toLowerCase().endsWith('.gguf')) {
+            Alert.alert('Неверный файл', 'Для локальной модели выберите файл .gguf');
+            return;
+          }
+          let fileName""")
+
 res=root/"android/app/src/main/res"
 fg=res/"drawable/ic_launcher_foreground.xml"
 fg.write_text('''<?xml version="1.0" encoding="utf-8"?>
