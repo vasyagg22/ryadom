@@ -209,6 +209,22 @@ replace("src/screens/ModelsScreen/ModelsScreen.tsx",
           }
           let fileName""")
 
+
+# Simplify the sidebar and model actions; all model inference is on-device.
+replace("src/components/SidebarContent/SidebarContent.tsx","            <Drawer.Item\n              label={l10n.components.sidebarContent.menuItems.pals}\n              icon={() => <PalIcon stroke={theme.colors.primary} />}\n              onPress={() => navigateTo(ROUTES.PALS)}\n              style={styles.menuDrawerItem}\n              testID=\"drawer-item-pals\"\n            />\n","")
+replace("src/components/SidebarContent/SidebarContent.tsx","            <Drawer.Item\n              label={l10n.components.sidebarContent.menuItems.benchmark}\n              icon={() => <BenchmarkIcon stroke={theme.colors.primary} />}\n              onPress={() => navigateTo(ROUTES.BENCHMARK)}\n              style={styles.menuDrawerItem}\n              testID=\"drawer-item-benchmark\"\n            />\n","")
+replace("src/components/SidebarContent/SidebarContent.tsx","            <PlusDrawerItem\n              onPress={() => {\n                props.navigation.closeDrawer();\n                openPlus();\n              }}\n            />\n","")
+replace("src/components/SidebarContent/SidebarContent.tsx","import {PlusDrawerItem} from './PlusDrawerItem/PlusDrawerItem';\n","")
+replace("src/components/SidebarContent/SidebarContent.tsx","import {openPlus} from '../../services/plus/gate';\n","")
+replace("src/components/SidebarContent/SidebarContent.tsx","  PalIcon,\n","")
+replace("src/components/SidebarContent/SidebarContent.tsx","  BenchmarkIcon,\n","")
+replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","import {CloudPlusIcon} from '../../../assets/icons';\n","")
+replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","const RemoteIcon = (props: IconComponentProps): React.ReactNode => (\n  <CloudPlusIcon width={props.size} height={props.size} stroke={props.color} />\n);\n","")
+replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","      {\n        testID: 'remote-fab',\n        icon: RemoteIcon,\n        label: l10n.settings.addRemoteModel,\n        accessibilityLabel: l10n.settings.addRemoteModel,\n        style: styles.actionButton,\n        onPress: () => {\n          onAddRemoteModel();\n        },\n","")
+replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","    if (hasServers && onManageServers) {\n      items.push({\n        testID: 'manage-servers-fab',\n        icon: 'server-network',\n        label: l10n.settings.manageServers,\n        accessibilityLabel: l10n.settings.manageServers,\n        style: styles.actionButton,\n        onPress: () => {\n          onManageServers();\n        },\n      });\n    }\n    return items;\n","    return items;\n")
+replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","  onAddRemoteModel,\n  onManageServers,\n  hasServers,\n}) => {","}) => {")
+replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","    onAddRemoteModel,\n    onManageServers,\n    hasServers,\n","")
+
 res=root/"android/app/src/main/res"
 fg=res/"drawable/ic_launcher_foreground.xml"
 fg.write_text('''<?xml version="1.0" encoding="utf-8"?>
