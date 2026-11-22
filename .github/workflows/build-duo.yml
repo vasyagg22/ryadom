@@ -35,6 +35,11 @@ jobs:
           corepack enable
           corepack prepare yarn@1.22.22 --activate
           yarn install --frozen-lockfile --non-interactive
+      - name: Check app TypeScript and localization
+        working-directory: pocketpal
+        run: |
+          yarn typecheck
+          yarn l10n:validate
       - name: Install SDK platform and native compiler
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
