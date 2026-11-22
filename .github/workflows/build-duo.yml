@@ -45,8 +45,26 @@ jobs:
       - name: Build arm64 release APK (debug-signed beta)
         working-directory: pocketpal/android
         run: |
+          cat > "$RUNNER_TEMP/maven-mirror.gradle" <<'GROOVY'
+          gradle.beforeSettings { settings ->
+            settings.pluginManagement.repositories {
+              maven { url = uri('https://maven-central.storage-download.googleapis.com/maven2/') }
+              google()
+              mavenCentral()
+              gradlePluginPortal()
+            }
+          }
+          gradle.beforeProject { project ->
+            project.buildscript.repositories {
+              maven { url = uri('https://maven-central.storage-download.googleapis.com/maven2/') }
+            }
+            project.repositories {
+              maven { url = uri('https://maven-central.storage-download.googleapis.com/maven2/') }
+            }
+          }
+          GROOVY
           chmod +x gradlew
-          ./gradlew --no-daemon -PreactNativeArchitectures=arm64-v8a assembleProdRelease
+          ./gradlew --init-script "$RUNNER_TEMP/maven-mirror.gradle" --no-daemon -PreactNativeArchitectures=arm64-v8a assembleProdRelease
       - name: Verify actual Android APK package and signature
         run: |
           set -euo pipefail
