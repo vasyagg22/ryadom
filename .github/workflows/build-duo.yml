@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: duo-offline-apk-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   android:
     runs-on: ubuntu-24.04
@@ -67,7 +70,7 @@ jobs:
           }
           GROOVY
           chmod +x gradlew
-          ./gradlew --init-script "$RUNNER_TEMP/maven-mirror.gradle" --no-daemon -PreactNativeArchitectures=arm64-v8a assembleProdRelease
+          ./gradlew --init-script "$RUNNER_TEMP/maven-mirror.gradle" --no-daemon --stacktrace --console=plain -PreactNativeArchitectures=arm64-v8a assembleProdRelease
       - name: Verify actual Android APK package and signature
         run: |
           set -euo pipefail
