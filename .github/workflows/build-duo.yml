@@ -48,7 +48,7 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" "ndk;27.3.13750724" "cmake;3.22.1"
           if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then sudo ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"; fi
-      - name: Build arm64 release APK (debug-signed beta)
+      - name: Build Android APK with emulator ABI (debug-signed beta)
         working-directory: pocketpal/android
         run: |
           cat > "$RUNNER_TEMP/maven-mirror.gradle" <<'GROOVY'
@@ -70,7 +70,31 @@ jobs:
           }
           GROOVY
           chmod +x gradlew
-          ./gradlew --init-script "$RUNNER_TEMP/maven-mirror.gradle" --no-daemon --stacktrace --console=plain -PreactNativeArchitectures=arm64-v8a assembleProdRelease
+          ./gradlew --init-script "$RUNNER_TEMP/maven-mirror.gradle" --no-daemon --stacktrace --console=plain -PreactNativeArchitectures=arm64-v8a,x86_64 assembleProdRelease
+      - name: Smoke test Android launch in emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            set -euo pipefail
+            apk="$(find pocketpal/android/app/build/outputs/apk/prod/release -type f -name '*.apk' | head -n 1)"
+            test -s "$apk"
+            adb install -r "$apk"
+            adb logcat -c
+            echo "Starting app on emulator"
+            adb shell am start -n app.duo.offlineai/com.pocketpal.MainActivity
+            sleep 25
+            if ! adb shell pidof app.duo.offlineai; then
+              echo "::error::App crashed or exited during smoke test"
+              adb logcat -d -v threadtime | grep -E -A 18 'FATAL EXCEPTION|AndroidRuntime|ReactNativeJS|SoLoader|UnsatisfiedLinkError|No Firebase App' | tail -n 240 || true
+              exit 1
+            fi
+            echo "SMOKE_TEST_PASS app.duo.offlineai"
       - name: Verify actual Android APK package and signature
         run: |
           set -euo pipefail
