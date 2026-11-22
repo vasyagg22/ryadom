@@ -210,20 +210,37 @@ replace("src/screens/ModelsScreen/ModelsScreen.tsx",
           let fileName""")
 
 
-# Simplify the sidebar and model actions; all model inference is on-device.
-replace("src/components/SidebarContent/SidebarContent.tsx","            <Drawer.Item\n              label={l10n.components.sidebarContent.menuItems.pals}\n              icon={() => <PalIcon stroke={theme.colors.primary} />}\n              onPress={() => navigateTo(ROUTES.PALS)}\n              style={styles.menuDrawerItem}\n              testID=\"drawer-item-pals\"\n            />\n","")
-replace("src/components/SidebarContent/SidebarContent.tsx","            <Drawer.Item\n              label={l10n.components.sidebarContent.menuItems.benchmark}\n              icon={() => <BenchmarkIcon stroke={theme.colors.primary} />}\n              onPress={() => navigateTo(ROUTES.BENCHMARK)}\n              style={styles.menuDrawerItem}\n              testID=\"drawer-item-benchmark\"\n            />\n","")
-replace("src/components/SidebarContent/SidebarContent.tsx","            <PlusDrawerItem\n              onPress={() => {\n                props.navigation.closeDrawer();\n                openPlus();\n              }}\n            />\n","")
-replace("src/components/SidebarContent/SidebarContent.tsx","import {PlusDrawerItem} from './PlusDrawerItem/PlusDrawerItem';\n","")
-replace("src/components/SidebarContent/SidebarContent.tsx","import {openPlus} from '../../services/plus/gate';\n","")
-replace("src/components/SidebarContent/SidebarContent.tsx","  PalIcon,\n","")
-replace("src/components/SidebarContent/SidebarContent.tsx","  BenchmarkIcon,\n","")
-replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","import {CloudPlusIcon} from '../../../assets/icons';\n","")
-replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","const RemoteIcon = (props: IconComponentProps): React.ReactNode => (\n  <CloudPlusIcon width={props.size} height={props.size} stroke={props.color} />\n);\n","")
-replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","      {\n        testID: 'remote-fab',\n        icon: RemoteIcon,\n        label: l10n.settings.addRemoteModel,\n        accessibilityLabel: l10n.settings.addRemoteModel,\n        style: styles.actionButton,\n        onPress: () => {\n          onAddRemoteModel();\n        },\n","")
-replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","    if (hasServers && onManageServers) {\n      items.push({\n        testID: 'manage-servers-fab',\n        icon: 'server-network',\n        label: l10n.settings.manageServers,\n        accessibilityLabel: l10n.settings.manageServers,\n        style: styles.actionButton,\n        onPress: () => {\n          onManageServers();\n        },\n      });\n    }\n    return items;\n","    return items;\n")
-replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","  onAddRemoteModel,\n  onManageServers,\n  hasServers,\n}) => {","}) => {")
-replace("src/screens/ModelsScreen/FABGroup/FABGroup.tsx","    onAddRemoteModel,\n    onManageServers,\n    hasServers,\n","")
+# Remove Firebase from the fork completely: its default app has no
+# google-services.json, and the RNFirebase native package can crash at startup.
+# Firebase is not needed for GGUF, llama.rn, whisper.rn or local voices.
+deps=root/"package.json"
+package=json.loads(deps.read_text())
+for name in ("@react-native-firebase/app","@react-native-firebase/app-check"):
+    assert name in package["dependencies"], name
+    del package["dependencies"][name]
+deps.write_text(json.dumps(package,ensure_ascii=False,indent=2)+"\n")
+replace("android/build.gradle",
+  "        classpath 'com.google.gms:google-services:4.4.4'\n",
+  "")
+replace("android/app/build.gradle",
+  "    implementation platform('com.google.firebase:firebase-bom:34.4.0')\n    implementation 'com.google.firebase:firebase-appcheck-playintegrity'\n    implementation 'com.google.firebase:firebase-appcheck-debug'\n",
+  "")
+(root/"src/utils/fb.ts").write_text("""// This fork never initializes Firebase. Only local inference is enabled.
+export async function initializeAppCheck(): Promise<void> {
+  throw new Error('Firebase App Check is disabled in the offline build');
+}
+export async function getAppCheckToken(): Promise<string> {
+  throw new Error('Firebase App Check is disabled in the offline build');
+}
+""")
+# Disable startup of purchase subsystem (unused in offline-only distribution).
+replace("App.tsx",
+  "    purchaseStore\n      .start(__E2E__ ? {store: fakeStore, beforeInit: fakeStore.restore} : {})\n      .catch(error => console.warn('Purchase recovery failed:', error));",
+  "    // No store purchases in Два ИИ: local models and voice are free.")
+replace("App.tsx",
+  "import {asrStore, purchaseStore, ttsStore, uiStore} from './src/store';",
+  "import {asrStore, ttsStore, uiStore} from './src/store';")
+# Avoid removing JSX slices during the stabilization release.
 
 res=root/"android/app/src/main/res"
 fg=res/"drawable/ic_launcher_foreground.xml"
