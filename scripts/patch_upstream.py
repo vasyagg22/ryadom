@@ -2,6 +2,7 @@
 """Private-by-default experimental MIT PocketPal v1.24.0 fork called Два ИИ."""
 from pathlib import Path
 import json
+import os
 from PIL import Image, ImageDraw
 
 root=Path("pocketpal")
@@ -16,7 +17,7 @@ def replace(path,old,new):
     f.write_text(t.replace(old,new,1))
 replace("android/app/build.gradle",'applicationId "com.pocketpalai"','applicationId "app.duo.offlineai"')
 replace("android/app/build.gradle",'versionName "1.24.0"','versionName "0.1.0"')
-replace("android/app/build.gradle",'versionCode 161','versionCode 1')
+replace("android/app/build.gradle",'versionCode 161',f'versionCode {max(1,int(os.environ.get("GITHUB_RUN_NUMBER", "1")))}')
 replace("android/app/build.gradle",'apply plugin: "com.google.gms.google-services"','// Standalone app: no Firebase Google Services plugin')
 replace("android/app/src/main/res/values/strings.xml",'<string name="app_name">PocketPal</string>','<string name="app_name">Два ИИ</string>')
 replace("android/app/src/main/AndroidManifest.xml",'android:scheme="pocketpal"','android:scheme="duoai"')
