@@ -85,6 +85,113 @@ o["about"]["description"]="Два ИИ — локальный помощник �
 o["about"]["supportProjectDescription"]="Открытый PocketPal AI: поддержать создателей оригинала:"
 locale.write_text(json.dumps(o,ensure_ascii=False,indent=2)+"\n")
 
+
+# Duo fast start: no six-page PocketPal onboarding; app opens in Chat.
+replace("App.tsx",
+    "import {OnboardingStack} from './src/screens/OnboardingScreens';",
+    "// Duo goes directly to Chat and its two-model starter.")
+replace("App.tsx",
+    """  if (!uiStore.hasCompletedOnboarding) {
+    return <OnboardingStack />;
+  }
+  return <>{drawer}</>;""",
+    """  // Keep the original store and model lifecycle, but use the standalone
+  // two-model starter instead of PocketPal's six-page introduction.
+  return <>{drawer}</>;""")
+# A small touch target lets users jump straight from the active-model banner to Models.
+replace(file,"import {StyleSheet, View, Text} from 'react-native';",
+             "import {StyleSheet, View, Text, Pressable} from 'react-native';")
+replace(file,"import {VideoPalScreen} from './VideoPalScreen';",
+             """import {VideoPalScreen} from './VideoPalScreen';
+import {useNavigation} from '@react-navigation/native';
+import {ROUTES} from '../../utils/navigationConstants';""")
+replace(file,"  const l10n = React.useContext(L10nContext);",
+             """  const l10n = React.useContext(L10nContext);
+  const navigation = useNavigation<any>();""")
+replace(file,
+    '        <View style={styles.duoBar} accessible accessibilityRole="summary">',
+    """        <Pressable style={styles.duoBar} onPress={() => navigation.navigate(ROUTES.MODELS)}
+          accessibilityRole="button" accessibilityLabel="Выбрать или скачать модель ИИ">""")
+replace(file,
+    """        </View>
+        <ChatView
+""",
+    """        </Pressable>
+        <ChatView
+""")
+
+# Two clickable recommendations, backed by existing Hugging Face search/download.
+path="src/screens/ModelsScreen/ModelsScreen.tsx"
+replace(path,
+    "import {FlatList, RefreshControl, Platform, Alert, View} from 'react-native';",
+    "import {FlatList, RefreshControl, Platform, Alert, View, Text, Pressable} from 'react-native';")
+replace(path,
+    """        data={flatListModels}
+        keyExtractor={item => item.type}""",
+    """        data={flatListModels}
+        ListHeaderComponent={
+          <View style={{paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20}}>
+            <View style={{
+              backgroundColor: theme.dark ? '#251C3B' : '#EEE9FF',
+              borderRadius: 20, padding: 18,
+              borderWidth: 1, borderColor: theme.dark ? '#473463' : '#DAD0F6',
+            }}>
+              <Text style={{fontSize: 20, fontWeight: '800',
+                color: theme.dark ? '#F4EFFF' : '#30224E'}}>
+                Два ИИ — выбери помощника
+              </Text>
+              <Text style={{fontSize: 13, lineHeight: 19, marginTop: 8,
+                color: theme.dark ? '#CEC3E5' : '#564A72'}}>
+                Скачай модель один раз, затем общайся без интернета.
+                Можно добавить уже сохранённый файл GGUF.
+              </Text>
+              <Pressable accessibilityRole="button"
+                accessibilityLabel="Найти и скачать Gemma 4 E2B"
+                onPress={() => {
+                  hfStore.setSearchQuery('Gemma-4-E2B');
+                  setHFSearchVisible(true);
+                }}
+                style={{backgroundColor: '#6945D8', borderRadius: 14,
+                  padding: 13, marginTop: 15}}>
+                <Text style={{color: '#FFFFFF', fontWeight: '700', fontSize: 15}}>
+                  ✦ Gemma 4 E2B
+                </Text>
+                <Text style={{color: '#EBE4FF', fontSize: 12, marginTop: 3}}>
+                  Чат и изображения при наличии модуля зрения
+                </Text>
+              </Pressable>
+              <Pressable accessibilityRole="button"
+                accessibilityLabel="Найти и скачать Bonsai 8B"
+                onPress={() => {
+                  hfStore.setSearchQuery('Bonsai-8B');
+                  setHFSearchVisible(true);
+                }}
+                style={{backgroundColor: theme.dark ? '#3B2B56' : '#FFFFFF',
+                  borderRadius: 14, padding: 13, marginTop: 10,
+                  borderWidth: 1, borderColor: theme.dark ? '#5D497B' : '#CFC3EE'}}>
+                <Text style={{fontWeight: '700', fontSize: 15,
+                  color: theme.dark ? '#F4EFFF' : '#30224E'}}>
+                  ◈ Bonsai 8B
+                </Text>
+                <Text style={{fontSize: 12, marginTop: 3,
+                  color: theme.dark ? '#CCBBDD' : '#675781'}}>
+                  Локальный текстовый помощник
+                </Text>
+              </Pressable>
+              <Pressable accessibilityRole="button"
+                accessibilityLabel="Добавить ранее скачанный GGUF"
+                onPress={handleAddLocalModel}
+                style={{paddingVertical: 14, paddingHorizontal: 8, marginTop: 4}}>
+                <Text style={{textAlign: 'center', fontWeight: '700',
+                  color: theme.dark ? '#C9B7FF' : '#6945D8'}}>
+                  + Добавить свой GGUF-файл
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        }
+        keyExtractor={item => item.type}""")
+
 res=root/"android/app/src/main/res"
 fg=res/"drawable/ic_launcher_foreground.xml"
 fg.write_text('''<?xml version="1.0" encoding="utf-8"?>
