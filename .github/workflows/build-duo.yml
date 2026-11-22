@@ -71,7 +71,17 @@ jobs:
           GROOVY
           chmod +x gradlew
           ./gradlew --init-script "$RUNNER_TEMP/maven-mirror.gradle" --no-daemon --stacktrace --console=plain -PreactNativeArchitectures=arm64-v8a,x86_64 assembleProdRelease
+      - name: Prepare emulator acceleration or software fallback
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            echo "KVM_DEVICE_PRESENT=yes"
+          else
+            echo "KVM_DEVICE_PRESENT=no; enabling software TCG fallback"
+          fi
       - name: Smoke test Android launch in emulator
+        env:
+          ANDROID_I_WANT_MY_TCG: 'yes'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -79,7 +89,9 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1200
+          cores: 2
+          ram-size: 2048M
           script: |
             set -euo pipefail
             apk="$(find pocketpal/android/app/build/outputs/apk/prod/release -type f -name '*.apk' | head -n 1)"
