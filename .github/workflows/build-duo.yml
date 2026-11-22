@@ -101,15 +101,15 @@ jobs:
           mkdir -p out
           apk="$(find pocketpal/android/app/build/outputs/apk/prod/release -name '*.apk' -type f | head -n1)"
           test -n "$apk" && test -s "$apk"
-          cp "$apk" out/Dva-II-offline-v0.1.0-arm64.apk
-          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose out/Dva-II-offline-v0.1.0-arm64.apk
-          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs out/Dva-II-offline-v0.1.0-arm64.apk > out/SIGNATURE.txt
-          "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging out/Dva-II-offline-v0.1.0-arm64.apk > out/badging.txt
+          cp "$apk" out/Dva-II-offline-v0.1.1-beta.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose out/Dva-II-offline-v0.1.1-beta.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs out/Dva-II-offline-v0.1.1-beta.apk > out/SIGNATURE.txt
+          "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging out/Dva-II-offline-v0.1.1-beta.apk > out/badging.txt
           grep "package: name='app.duo.offlineai'" out/badging.txt
-          cd out && sha256sum Dva-II-offline-v0.1.0-arm64.apk > SHA256SUMS
+          cd out && sha256sum Dva-II-offline-v0.1.1-beta.apk > SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: Dva-II-Android-0.1.0-beta
+          name: Dva-II-Android-0.1.1-beta
           path: out/*
           if-no-files-found: error
           retention-days: 30
@@ -119,12 +119,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="duo-v0.1.0-beta"
+          tag="duo-v0.1.1-beta-smoketest"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" out/Dva-II-offline-v0.1.0-arm64.apk out/SHA256SUMS out/SIGNATURE.txt --clobber
+            gh release upload "$tag" out/Dva-II-offline-v0.1.1-beta.apk out/SHA256SUMS out/SIGNATURE.txt --clobber
           else
-            gh release create "$tag" out/Dva-II-offline-v0.1.0-arm64.apk out/SHA256SUMS out/SIGNATURE.txt \
-              --target "$GITHUB_SHA" --title "Два ИИ — Android 0.1.0 beta" \
+            gh release create "$tag" out/Dva-II-offline-v0.1.1-beta.apk out/SHA256SUMS out/SIGNATURE.txt \
+              --target "$GITHUB_SHA" --title "Два ИИ — Android 0.1.1 beta" \
               --notes "Тестовый офлайн-клиент с импортом GGUF, чатом, распознаванием фото при поддержке модели, локальным голосом после установки голосовых моделей. Требуется проверка на телефоне. Подпись экспериментальная, не production." \
               --prerelease
           fi
