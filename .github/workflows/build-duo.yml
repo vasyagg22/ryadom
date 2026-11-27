@@ -1,0 +1,128 @@
+name: Build two offline AIs (Android APK)
+on:
+  push:
+    branches: [build/duo-offline-android]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: duo-offline-apk-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 115
+    env:
+      ORG_GRADLE_PROJECT_rnllamaBuildFromSource: 'false'
+      PLUS_STORE_GATE: '0'
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.21.0'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Python Pillow
+        run: python3 -m pip install --break-system-packages Pillow
+      - name: Get PocketPal AI MIT v1.24.0 sources
+        run: git clone --depth 1 --branch v1.24.0 https://github.com/a-ghorbani/pocketpal-ai.git pocketpal
+      - name: Apply custom Android package, design and branding
+        run: python3 scripts/patch_upstream.py
+      - name: Install Yarn and source dependencies
+        working-directory: pocketpal
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+      - name: Check app TypeScript and localization
+        working-directory: pocketpal
+        run: |
+          yarn typecheck
+          yarn l10n:validate
+      - name: Install SDK platform and native compiler
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" "ndk;27.3.13750724" "cmake;3.22.1"
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then sudo ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"; fi
+      - name: Build Android APK with emulator ABI (debug-signed beta)
+        working-directory: pocketpal/android
+        run: |
+          cat > "$RUNNER_TEMP/maven-mirror.gradle" <<'GROOVY'
+          gradle.beforeSettings { settings ->
+            settings.pluginManagement.repositories {
+              maven { url = uri('https://maven-central.storage-download.googleapis.com/maven2/') }
+              google()
+              mavenCentral()
+              gradlePluginPortal()
+            }
+          }
+          gradle.beforeProject { project ->
+            project.buildscript.repositories {
+              maven { url = uri('https://maven-central.storage-download.googleapis.com/maven2/') }
+            }
+            project.repositories {
+              maven { url = uri('https://maven-central.storage-download.googleapis.com/maven2/') }
+            }
+          }
+          GROOVY
+          chmod +x gradlew
+          ./gradlew --init-script "$RUNNER_TEMP/maven-mirror.gradle" --no-daemon --stacktrace --console=plain -PreactNativeArchitectures=arm64-v8a,x86_64 assembleProdRelease
+      - name: Prepare emulator acceleration or software fallback
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            echo "KVM_DEVICE_PRESENT=yes"
+          else
+            echo "KVM_DEVICE_PRESENT=no; enabling software TCG fallback"
+          fi
+      - name: Smoke test Android launch in emulator
+        env:
+          ANDROID_I_WANT_MY_TCG: 'yes'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 1200
+          cores: 2
+          ram-size: 2048M
+          script: bash scripts/smoke-duo-android.sh
+      - name: Verify actual Android APK package and signature
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find pocketpal/android/app/build/outputs/apk/prod/release -name '*.apk' -type f | head -n1)"
+          test -n "$apk" && test -s "$apk"
+          cp "$apk" out/Dva-II-offline-v0.1.1-beta.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose out/Dva-II-offline-v0.1.1-beta.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs out/Dva-II-offline-v0.1.1-beta.apk > out/SIGNATURE.txt
+          "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging out/Dva-II-offline-v0.1.1-beta.apk > out/badging.txt
+          grep "package: name='app.duo.offlineai'" out/badging.txt
+          cd out && sha256sum Dva-II-offline-v0.1.1-beta.apk > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dva-II-Android-0.1.1-beta
+          path: out/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish direct-download beta APK
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="duo-v0.1.1-beta-smoketest"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" out/Dva-II-offline-v0.1.1-beta.apk out/SHA256SUMS out/SIGNATURE.txt --clobber
+          else
+            gh release create "$tag" out/Dva-II-offline-v0.1.1-beta.apk out/SHA256SUMS out/SIGNATURE.txt \
+              --target "$GITHUB_SHA" --title "Два ИИ — Android 0.1.1 beta" \
+              --notes "Тестовый офлайн-клиент с импортом GGUF, чатом, распознаванием фото при поддержке модели, локальным голосом после установки голосовых моделей. Требуется проверка на телефоне. Подпись экспериментальная, не production." \
+              --prerelease
+          fi
